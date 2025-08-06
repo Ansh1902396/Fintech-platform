@@ -1,10 +1,8 @@
 use std::io;
 mod accounting;
 mod core;
-mod errors;
-mod tx;
+use  fintech_common::{errors , tx};
 mod trading_platform;
-use crate::accounting::Accounts;
 
 fn read_from_stdin(label: &str) -> String {
     let mut buffer = String::new();
