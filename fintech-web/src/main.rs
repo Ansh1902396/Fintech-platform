@@ -2,102 +2,6 @@ mod accounting;
 mod core;
 use  fintech_common::{errors , tx};
 mod trading_platform;
-
-// fn read_from_stdin(label: &str) -> String {
-//     let mut buffer = String::new();
-//     println!("{}", label);
-//     io::stdin()
-//         .read_line(&mut buffer)
-//         .expect("Couldn't read from stdin");
-//     buffer.trim().to_owned()
-// }
-
-// fn main() {
-//     println!("Hello, accounting world!");
-
-//     let mut trading_platform = trading_platform::TradingPlatform::new();
-//     loop {
-//         let input = read_from_stdin(
-//             "Choose operation [deposit, withdraw, send, print, orderbook, order, quit], confirm with return:",
-//         );
-//         match input.as_str() {
-//             "deposit" => {
-//                 let account = read_from_stdin("Account:");
-
-//                 let raw_amount = read_from_stdin("Amount:").parse();
-//                 if let Ok(amount) = raw_amount {
-//                     let _ = trading_platform.deposit(&account, amount);
-//                     println!("Deposited {} into account '{}'", amount, account)
-//                 } else {
-//                     eprintln!("Not a number: '{:?}'", raw_amount);
-//                 }
-//             }
-//             "withdraw" => {
-//                 let account = read_from_stdin("Account:");
-//                 let raw_amount = read_from_stdin("Amount:").parse();
-//                 if let Ok(amount) = raw_amount {
-//                     let _ = trading_platform.withdraw(&account, amount);
-//                 } else {
-//                     eprintln!("Not a number: '{:?}'", raw_amount);
-//                 }
-//             }
-//             "send" => {
-//                 let sender = read_from_stdin("Sender Account:");
-//                 let recipient = read_from_stdin("Recipient Account:");
-//                 let raw_amount = read_from_stdin("Amount:").parse();
-//                 if let Ok(amount) = raw_amount {
-//                     let _ = trading_platform.send(&sender, &recipient, amount);
-//                 } else {
-//                     eprintln!("Not a number: '{:?}'", raw_amount);
-//                 }
-//             }
-//             "order" => {
-//                 let raw_price = read_from_stdin("Price:").parse();
-//                 let raw_amount = read_from_stdin("Amount:").parse();
-//                 let side_input = read_from_stdin("Side (buy/sell):");
-//                 let signer = read_from_stdin("Signer:");
-
-//                 if let (Ok(price), Ok(amount)) = (raw_price, raw_amount) {
-//                     let side = match side_input.as_str() {
-//                         "buy" => core::Side::Buy,
-//                         "sell" => core::Side::Sell,
-//                         _ => {
-//                             eprintln!("Invalid side: '{}'", side_input);
-//                             continue;
-//                         }
-//                     };
-//                     let order = core::Order {
-//                         price,
-//                         amount,
-//                         side,
-//                         signer,
-//                     };
-//                     match trading_platform.order(order) {
-//                         Ok(receipt) => println!("Order processed: {:?}", receipt),
-//                         Err(e) => eprintln!("Error processing order: {:?}", e),
-//                     }
-//                 } else {
-//                     eprintln!("Invalid price or amount");
-//                 }
-//             }
-//             "orderbook" => {
-//                 let orderbook = trading_platform.orderbook();
-//                 println!("Orderbook: {:?}", orderbook);
-//             }
-//             "print" => {
-//                 println!("The ledger: {:?}", trading_platform.accounts);
-//             }
-//             "quit" => {
-//                 println!("Quitting...");
-//                 break;
-//             }
-//             _ => {
-//                 eprintln!("Invalid option: '{}'", input);
-//             }
-//         }
-//     }
-// }
-
 use warp::Filter;
 
 
@@ -105,8 +9,10 @@ use warp::Filter;
 async fn main() {
    
     pretty_env_logger::init();
+    log::info!("Starting Fintech Trading Platform Server");
 
     let trading_platform = std::sync::Arc::new(std::sync::Mutex::new(trading_platform::TradingPlatform::new()));
+    log::info!("Trading platform initialized");
 
     let routes = filters::deposit(trading_platform.clone())
         .or(filters::withdraw(trading_platform.clone()))
@@ -115,7 +21,10 @@ async fn main() {
         .or(filters::orderbook(trading_platform.clone()))
         .or(filters::balance(trading_platform.clone()));
 
+    log::info!("Routes configured");
     println!("Starting server on http://127.0.0.1:3030");
+    log::info!("Server starting on http://127.0.0.1:3030");
+    
     warp::serve(routes)
         .run(([127, 0, 0, 1], 3030))
         .await;
@@ -187,58 +96,95 @@ mod filters {
 mod handlers {
     use std::convert::Infallible;
     use fintech_common::core::types::{AccountBalanceRequest, AccountUpdateRequest, Order, SendRequest};
-
     use crate::trading_platform::TradingPlatform;
     use std::sync::{Arc, Mutex};
+    use log::{info, error};
 
 
     pub async fn deposit(tp : Arc<Mutex<TradingPlatform>> , req: AccountUpdateRequest ) -> Result<impl warp::Reply ,Infallible> {
+        info!("Deposit request for account: {}, amount: {}", req.account, req.amount);
         let mut platform = tp.lock().unwrap();
         match platform.deposit(&req.account, req.amount) {
-            Ok(_) => Ok(warp::reply::json(&"Deposit successful")),
-            Err(e) => Ok(warp::reply::json(&format!("Error: {:?}", e))),
+            Ok(_) => {
+                info!("Deposit successful for account: {}, amount: {}", req.account, req.amount);
+                Ok(warp::reply::json(&"Deposit successful"))
+            },
+            Err(e) => {
+                error!("Deposit failed for account: {}, amount: {}, error: {:?}", req.account, req.amount, e);
+                Ok(warp::reply::json(&format!("Error: {:?}", e)))
+            },
         }
     }
 
 
     pub async fn withdraw(tp : Arc<Mutex<TradingPlatform>> , req: AccountUpdateRequest ) -> Result<impl warp::Reply ,Infallible> {
+        info!("Withdraw request for account: {}, amount: {}", req.account, req.amount);
         let mut platform = tp.lock().unwrap();
         match platform.withdraw(&req.account, req.amount) {
-            Ok(_) => Ok(warp::reply::json(&"Withdrawal successful")),
-            Err(e) => Ok(warp::reply::json(&format!("Error: {:?}", e))),
+            Ok(_) => {
+                info!("Withdrawal successful for account: {}, amount: {}", req.account, req.amount);
+                Ok(warp::reply::json(&"Withdrawal successful"))
+            },
+            Err(e) => {
+                error!("Withdrawal failed for account: {}, amount: {}, error: {:?}", req.account, req.amount, e);
+                Ok(warp::reply::json(&format!("Error: {:?}", e)))
+            },
         }
     }
 
     pub async fn send(tp : Arc<Mutex<TradingPlatform>> , req: SendRequest ) -> Result<impl warp::Reply ,Infallible> {
+        info!("Transfer request from: {} to: {}, amount: {}", req.sender, req.recipient, req.amount);
         let mut platform = tp.lock().unwrap();
         match platform.send(&req.sender, &req.recipient, req.amount) {
-            Ok(_) => Ok(warp::reply::json(&"Transfer successful")),
-            Err(e) => Ok(warp::reply::json(&format!("Error: {:?}", e))),
+            Ok(_) => {
+                info!("Transfer successful from: {} to: {}, amount: {}", req.sender, req.recipient, req.amount);
+                Ok(warp::reply::json(&"Transfer successful"))
+            },
+            Err(e) => {
+                error!("Transfer failed from: {} to: {}, amount: {}, error: {:?}", req.sender, req.recipient, req.amount, e);
+                Ok(warp::reply::json(&format!("Error: {:?}", e)))
+            },
         }
     }
 
     pub async fn order(tp : Arc<Mutex<TradingPlatform>> , req:Order ) -> Result<impl warp::Reply ,Infallible> {
+        info!("Order request - signer: {}, side: {:?}, price: {}, amount: {}", req.signer, req.side, req.price, req.amount);
         let mut platform = tp.lock().unwrap();
         match platform.order(req) {
-            Ok(receipt) => Ok(warp::reply::json(&receipt)),
-            Err(e) => Ok(warp::reply::json(&format!("Error processing order: {:?}", e))),
+            Ok(receipt) => {
+                info!("Order processed successfully - ordinal: {}, matches: {}", receipt.ordinal, receipt.matches.len());
+                Ok(warp::reply::json(&receipt))
+            },
+            Err(e) => {
+                error!("Order processing failed, error: {:?}", e);
+                Ok(warp::reply::json(&format!("Error processing order: {:?}", e)))
+            },
         }
     }
 
 
     //getter function for orderbook
     pub async fn orderbook(tp : Arc<Mutex<TradingPlatform>>) -> Result<impl warp::Reply, Infallible> {
+        info!("Orderbook request received");
         let platform = tp.lock().unwrap();
         let orderbook = platform.orderbook();
+        info!("Returning orderbook with {} orders", orderbook.len());
         Ok(warp::reply::json(&orderbook))
     }
 
 
     pub async fn balance(tp : Arc<Mutex<TradingPlatform>> , req : AccountBalanceRequest) -> Result<impl warp::Reply, Infallible> {
+        info!("Balance request for account: {}", req.account);
         let mut  platform = tp.lock().unwrap();
         match platform.balance_of(&req.account) {
-            Ok(balance) => Ok(warp::reply::json(&balance)),
-           Err(e) => Ok(warp::reply::json(&format!("Error: {:?}", e))),
+            Ok(balance) => {
+                info!("Balance retrieved for account: {}, balance: {}", req.account, balance);
+                Ok(warp::reply::json(&balance))
+            },
+           Err(e) => {
+                error!("Balance retrieval failed for account: {}, error: {:?}", req.account, e);
+                Ok(warp::reply::json(&format!("Error: {:?}", e)))
+            },
         }
     }
 }

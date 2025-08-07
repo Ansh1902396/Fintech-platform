@@ -147,6 +147,7 @@ name = "fintech-web"
 version = "0.1.0"
 dependencies = [
  "fintech-common",
+ "log",
  "pretty_env_logger",
  "serde",
  "socket2 0.4.10",
