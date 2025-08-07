@@ -1,3 +1,7 @@
+use core::error;
+use std::fmt::Debug;
+use warp::reject::Reject;
+
 /// An application-specific error type
 #[derive(Debug, PartialEq, Eq)]
 pub enum ApplicationError {
@@ -9,4 +13,17 @@ pub enum ApplicationError {
 
     /// Too much currency in the account (overflow)
     AccountOverFunded(String, u64),
+
+    
 }
+
+#[derive(Debug)]
+pub struct FintechError {
+    application_error: ApplicationError,
+}
+
+impl Reject for FintechError { 
+    
+}
+
+

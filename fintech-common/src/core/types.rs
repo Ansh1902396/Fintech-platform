@@ -1,7 +1,8 @@
 use std::cmp::Reverse;
+use serde::{Deserialize, Serialize};
 
 /// Simplified side of a position as well as order.
-#[derive(Clone, PartialOrd, PartialEq, Eq, Debug, Ord)]
+#[derive(Clone, PartialOrd, PartialEq, Eq, Debug, Ord , Deserialize, Serialize)]
 pub enum Side {
     /// Want to buy
     Buy,
@@ -10,7 +11,7 @@ pub enum Side {
 }
 
 /// An order for a specified symbol to buy or sell an amount at a given price.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq , Debug, Deserialize, Serialize)]
 pub struct Order {
     /// Max/min price (depending on the side)
     pub price: u64,
@@ -44,7 +45,7 @@ impl Order {
 }
 
 /// A position represents an unfilled order that is kept in the system for later filling.
-#[derive(Clone, PartialEq, Debug, Eq, Ord)]
+#[derive(Clone, PartialEq, Debug, Eq, Ord , Serialize, Deserialize)]
 pub struct PartialOrder {
     /// Price per unit
     pub price: u64,
@@ -59,6 +60,29 @@ pub struct PartialOrder {
     /// Sequence number
     pub ordinal: u64,
 }
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct AccountUpdateRequest { 
+    /// The account to update
+    pub account: String,
+    /// The amount to add or remove
+    pub amount: u64,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct AccountBalanceRequest {
+    /// The account to check the balance of
+    pub account: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct SendRequest {
+    /// The sender account
+    pub sender: String,
+    /// The recipient account
+    pub recipient: String,
+    /// The amount to send
+    pub amount: u64,
+}
 
 impl PartialOrd for PartialOrder {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -68,7 +92,7 @@ impl PartialOrd for PartialOrder {
 }
 
 /// A receipt issued to the caller for accepting an [`Order`]
-#[derive(Clone, PartialOrd, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialOrd, PartialEq, Eq, Debug , Serialize, Deserialize)]
 pub struct Receipt {
     /// Sequence number
     pub ordinal: u64,
